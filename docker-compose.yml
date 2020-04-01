@@ -6,42 +6,32 @@ services:
          - MYSQL_ROOT_PASSWORD=root
          - MYSQL_DATABASE=tmsdb
          - MYSQL_PASSWORD=root
-   eureka-server:
+   eurekaserver:
       image: 'fse2/tripmanagement_eureka_service'
       depends_on:
          - docker-mysql
       ports:
          - "8761:8761"
-   config-server:
+   configserver:
       image: 'fse2/tripmanagement_config_service'
       depends_on:
          - docker-mysql
-         - eureka-server
+         - eurekaserver
       ports:
-         - 8888:8888
+         - "8888:8888"
       environment:
          - GITREPO=https://github.com/deb82banerjee/FSE_S2_TripManagement_Config.git
-         - EUREKA_SERVER=http://eureka-server:8761/eureka
-   zuul-server:
+         - EUREKA_SERVER=http://eurekaserver:8761/eureka
+   zuulserver:
       image: 'fse2/tripmanagement_zuul_service'
+      restart: always
+      ports:
+         - "8081:8081"
       depends_on:
          - docker-mysql
-         - eureka-server
-         - config-server
-      ports:
-         - 8081:8081
-      environment:
-         - EUREKA_SERVER=http://eureka-server:8761/eureka         
-   auth-server:
-      image: 'fse2/tripmanagement_auth_service'
-      depends_on:
-         - docker-mysql
-         - eureka-server
-         - config-server
-      ports:
-         - 1111:1111
-      environment:
-         - EUREKA_SERVER=http://eureka-server:8761/eureka
-         - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?useSSL=false&createDatabaseIfNotExist=true
-         - DBUSER=root
-         - DBPASSWORD=root
+         - eurekaserver
+         - configserver
+      command: ["./wait-for-it.sh", "configserver:8888","java","-jar", "tripmanagement_zuul_service-0.0.1-SNAPSHOT.jar"]
+      #,"--","./wait-for-it.sh", "eurekaserver:8761", "--", "java","-jar", "tripmanagement_zuul_service-0.0.1-SNAPSHOT.jar"]
+#      environment:
+#         - EUREKA_SERVER=http://eurekaserver:8761/eureka
