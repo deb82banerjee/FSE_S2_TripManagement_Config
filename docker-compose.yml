@@ -1,24 +1,29 @@
 version: '3'
 services: 
    docker-mysql:
-      image: mysql:latest
+      image: mysql:5.7
+      restart: always
+      ports:
+         - "3307:3306"
+      expose:
+         - "3306"
       environment:
          - MYSQL_ROOT_PASSWORD=root
          - MYSQL_DATABASE=tmsdb
          - MYSQL_PASSWORD=root
    tripmanagement-ui:
-      image: 'tripmanagement-ui'
+      image: 'deb82banerjee/fse-s2-tripmanagement:tripmanagement-ui'
       restart: always
       ports:
          - "4200:80"
    eurekaserver:
-      image: 'fse2/tripmanagement_eureka_service'
+      image: 'deb82banerjee/fse-s2-tripmanagement:eureka'
       depends_on:
          - docker-mysql
       ports:
          - "8761:8761"
    configserver:
-      image: 'fse2/tripmanagement_config_service'
+      image: 'deb82banerjee/fse-s2-tripmanagement:config'
       depends_on:
          - docker-mysql
          - eurekaserver
@@ -28,71 +33,85 @@ services:
          - GITREPO=https://github.com/deb82banerjee/FSE_S2_TripManagement_Config.git
          - EUREKA_SERVER=http://eurekaserver:8761/eureka
    zuulserver:
-      image: 'fse2/tripmanagement_zuul_service'
+      image: 'deb82banerjee/fse-s2-tripmanagement:zuul'
       restart: always
       ports:
-         - "8081:8081"
+         - "8082:8082"
       depends_on:
          - docker-mysql
          - eurekaserver
          - configserver
       environment:
+         - ZUUL_PORT=8082
          - CONFIG_SERVER=http://configserver:8888
          - EUREKA_SERVER=http://eurekaserver:8761/eureka
    authserver:
-      image: 'fse2/tripmanagement_auth_service'
+      image: 'deb82banerjee/fse-s2-tripmanagement:auth'
       restart: always
       depends_on:
          - docker-mysql
          - eurekaserver
          - configserver
+         - zuulserver
       ports:
          - "1111:1111"
       environment:
+         - CONFIG_SERVER=http://configserver:8888
          - EUREKA_SERVER=http://eurekaserver:8761/eureka
          - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?createDatabaseIfNotExist=true
          - DBUSER=root
          - DBPASSWORD=root
    driverserver:
-      image: 'fse2/tripmanagement_driver_service'
+      image: 'deb82banerjee/fse-s2-tripmanagement:driver'
       restart: always
       depends_on:
          - docker-mysql
          - eurekaserver
          - configserver
+         - zuulserver
+         - authserver
       ports:
          - "3333:3333"
       environment:
          - EUREKA_SERVER=http://eurekaserver:8761/eureka
+         - CONFIG_SERVER=http://configserver:8888
          - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?createDatabaseIfNotExist=true
          - DBUSER=root
          - DBPASSWORD=root
    riderserver:
-      image: 'fse2/tripmanagement_rider_service'
+      image: 'deb82banerjee/fse-s2-tripmanagement:rider'
       restart: always
       depends_on:
          - docker-mysql
          - eurekaserver
          - configserver
+         - zuulserver
+         - authserver
+         - driverserver
       ports:
          - "4444:4444"
       environment:
          - EUREKA_SERVER=http://eurekaserver:8761/eureka
+         - CONFIG_SERVER=http://configserver:8888
          - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?createDatabaseIfNotExist=true
          - DBUSER=root
          - DBPASSWORD=root
    adminserver:
-      image: 'fse2/tripmanagement_admin_service'
+      image: 'deb82banerjee/fse-s2-tripmanagement:admin'
       restart: always
       depends_on:
          - docker-mysql
          - eurekaserver
          - configserver
+         - zuulserver
+         - authserver
+         - driverserver
+         - riderserver
       ports:
          - "2222:2222"
       environment:
          - EUREKA_SERVER=http://eurekaserver:8761/eureka
+         - CONFIG_SERVER=http://configserver:8888
          - DATASOURCEURL=jdbc:mysql://docker-mysql:3306/tmsdb?createDatabaseIfNotExist=true
          - DBUSER=root
          - DBPASSWORD=root
-         
